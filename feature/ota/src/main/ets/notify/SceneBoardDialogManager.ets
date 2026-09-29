@@ -31,7 +31,9 @@ const SUCCESS_CODE = 0;
 type DialogConnectContext = common.UIAbilityContext | common.ServiceExtensionContext;
 
 export enum SceneBoardDialogType {
-  DOWNLOAD_REMINDER = 'downloadReminder'
+  DOWNLOAD_REMINDER = 'downloadReminder',
+  INSTALL_REMINDER = 'installReminder',
+  INSTALL_COUNTDOWN = 'installCountdown'
 }
 
 export interface SceneBoardDialogOptions {

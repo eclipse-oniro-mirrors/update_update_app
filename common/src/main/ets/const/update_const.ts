@@ -178,6 +178,21 @@ export enum ErrorCode {
   UPDATE_PART_FAIL = -409,
 
   /**
+   * 错误码--安装任务繁忙
+   */
+  SYSTEM_BUSY_ON_INSTALL = -407,
+
+  /**
+   * 错误码--安装前升级包校验失败
+   */
+  UPDATE_PRECHECK_FAIL = -420,
+
+  /**
+   * 错误码--启动 Updater 失败
+   */
+  UPDATE_REBOOT_FAIL = -421,
+
+  /**
    * 错误码--电量不足
    */
   NO_ENOUGH_BATTERY = -830,
