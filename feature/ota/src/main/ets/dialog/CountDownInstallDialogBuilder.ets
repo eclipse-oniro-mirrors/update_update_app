@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+import type common from '@ohos.app.ability.common';
 import { CountDownDialogType } from '@ohos/common/src/main/ets/const/update_const';
 import { FormatUtils } from '@ohos/common/src/main/ets/util/FormatUtils'
 
@@ -23,6 +24,8 @@ import { FormatUtils } from '@ohos/common/src/main/ets/util/FormatUtils'
  */
 @CustomDialog
 export struct CountDownInstallDialogBuilder {
+  private context = getContext(this) as common.Context;
+
   @StorageProp('configLanguage')
   @Watch('onLanguageChange') private configLanguage: string = AppStorage.Get('configLanguage') as string;
 
@@ -96,14 +99,14 @@ export struct CountDownInstallDialogBuilder {
   }
 
   private initButtonText(): void {
-    this.cancelBtnText = FormatUtils.toUpperCase(globalThis.abilityContext, $r('app.string.later'));
+    this.cancelBtnText = FormatUtils.toUpperCase(this.context, $r('app.string.later'));
     let confirmBtnRes: ResourceStr = '';
     if (this.dialogType == CountDownDialogType.OTA) {
       confirmBtnRes = $r('app.string.install_now');
     } else if (this.dialogType == CountDownDialogType.OTA_AB) {
       confirmBtnRes = $r('app.string.reboot_now');
     }
-    this.confirmBtnText = FormatUtils.toUpperCase(globalThis.abilityContext, confirmBtnRes, this.count);
+    this.confirmBtnText = FormatUtils.toUpperCase(this.context, confirmBtnRes, this.count);
   }
 
   @Styles buttonStyles() {

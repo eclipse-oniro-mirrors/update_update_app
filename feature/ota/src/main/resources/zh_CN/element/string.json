@@ -61,6 +61,14 @@
             "value":"检测到网络异常，下载已暂停。请检查网络连接后重试。"
         },
         {
+            "name":"connect_try_again_later",
+            "value":"请稍后重试"
+        },
+        {
+            "name":"install_fail_retry_search_content",
+            "value":"请重新搜索更新包"
+        },
+        {
             "name":"space_not_enough_title",
             "value":"空间不足"
         },
@@ -81,6 +89,14 @@
             "value":"升级包校验失败"
         },
         {
+            "name":"download_fail_notification_title",
+            "value":"新版本下载失败"
+        },
+        {
+            "name":"download_fail_notification_content",
+            "value":"请重新搜索更新包"
+        },
+        {
             "name":"package_changed_title",
             "value":"更新包有变更"
         },
@@ -99,6 +115,14 @@
         {
             "name":"btn_install_now",
             "value":"现在安装"
+        },
+        {
+            "name":"btn_night_upgrade",
+            "value":"夜间升级"
+        },
+        {
+            "name":"btn_install_immediately",
+            "value":"立即安装"
         },
         {
             "name":"software_update",
@@ -249,7 +273,23 @@
         },
         {
             "name":"desktop_download_dialog_content",
-            "value":"发现新的软件版本，是否立即下载并安装？"
+            "value":"%s 可用于您的设备。"
+        },
+        {
+            "name":"desktop_install_dialog_content",
+            "value":"%s 可用于您的设备且已经可以安装。"
+        },
+        {
+            "name":"enable_wlan_auto_download_title",
+            "value":"开启 WLAN 自动下载"
+        },
+        {
+            "name":"enable_wlan_auto_download_content",
+            "value":"有软件更新时，自动下载安装包。"
+        },
+        {
+            "name":"enable",
+            "value":"开启"
         }
     ]
 }

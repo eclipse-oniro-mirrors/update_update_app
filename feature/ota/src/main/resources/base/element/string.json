@@ -61,6 +61,14 @@
             "value":"Download paused. Check your network connection and try again."
         },
         {
+            "name":"connect_try_again_later",
+            "value":"Please try again later"
+        },
+        {
+            "name":"install_fail_retry_search_content",
+            "value":"Please check for updates again"
+        },
+        {
             "name":"space_not_enough_title",
             "value":"Insufficient storage"
         },
@@ -81,6 +89,14 @@
             "value":"Update package verification failed"
         },
         {
+            "name":"download_fail_notification_title",
+            "value":"New version download failed"
+        },
+        {
+            "name":"download_fail_notification_content",
+            "value":"Please check for updates again"
+        },
+        {
             "name":"package_changed_title",
             "value":"Update package changed"
         },
@@ -98,6 +114,14 @@
         },
         {
             "name":"btn_install_now",
+            "value":"Install now"
+        },
+        {
+            "name":"btn_night_upgrade",
+            "value":"Update overnight"
+        },
+        {
+            "name":"btn_install_immediately",
             "value":"Install now"
         },
         {
@@ -249,7 +273,23 @@
         },
         {
             "name":"desktop_download_dialog_content",
-            "value":"A new software update is available. Download and install it now?"
+            "value":"%s is available for your device."
+        },
+        {
+            "name":"desktop_install_dialog_content",
+            "value":"%s is available for your device and ready to install."
+        },
+        {
+            "name":"enable_wlan_auto_download_title",
+            "value":"Enable automatic WLAN downloads"
+        },
+        {
+            "name":"enable_wlan_auto_download_content",
+            "value":"Automatically download installation packages when software updates are available."
+        },
+        {
+            "name":"enable",
+            "value":"Enable"
         }
     ]
 }

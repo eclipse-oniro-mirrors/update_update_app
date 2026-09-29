@@ -162,14 +162,6 @@ export interface IPage {
  */
 export interface INotify {
   /**
-   * 下载提醒通知
-   *
-   * @param versionName 版本号
-   * @param context 上下文
-   */
-  showDownloadReminder(versionName: string, context: common.Context): Promise<void>;
-
-  /**
    * 下载进度通知
    *
    * @param version 版本号
@@ -195,12 +187,26 @@ export interface INotify {
   showVerifyFailed(context: common.Context): Promise<void>;
 
   /**
-   * 升级失败通知
+   * 下载失败通知
    *
-   * @param versionName 版本号
    * @param context 上下文
    */
-  showUpgradeFailed(versionName: string, context: common.Context): Promise<void>;
+  showDownloadFailed(context: common.Context): Promise<void>;
+
+  /**
+   * 升级失败通知
+   *
+   * @param context 上下文
+   */
+  showUpgradeFailed(context: common.Context): Promise<void>;
+
+  /**
+   * 进入 updater 前安装失败通知
+   *
+   * @param errorCode 安装失败错误码
+   * @param context 上下文
+   */
+  showPreInstallFailed(errorCode: number, context: common.Context): Promise<void>;
 
   /**
    * 升级成功通知

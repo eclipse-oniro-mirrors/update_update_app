@@ -19,9 +19,11 @@ import type common from '@ohos.app.ability.common';
 import {
   BusinessError,
   Action,
+  ErrorCode,
   PACKAGE_NAME,
   NIGHT_UPGRADE_START,
-  NIGHT_UPGRADE_END
+  NIGHT_UPGRADE_END,
+  UpdateConstant
 } from '@ohos/common/src/main/ets/const/update_const';
 import { FormatUtils } from '@ohos/common/src/main/ets/util/FormatUtils';
 import { LogUtils } from '@ohos/common/src/main/ets/util/LogUtils';
@@ -33,35 +35,6 @@ import { INotify } from '@ohos/common/src/main/ets/manager/UpgradeInterface';
  * @since 2022-06-05
  */
 export class NotificationHelper implements INotify {
-  /**
-   * 下载提醒通知
-   *
-   * @param versionName 版本号
-   * @param context 上下文
-   */
-  async showDownloadReminder(versionName: string, context: common.Context): Promise<void> {
-    let request: notification.NotificationRequest = {
-      content: {
-        notificationContentType: notification.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
-        normal: {
-          title: await context.resourceManager.getString($r('app.string.software_update').id),
-          text: await context.resourceManager.getString($r('app.string.desktop_download_dialog_content').id),
-          additionalText: versionName
-        }
-      },
-      wantAgent: await wantAgent.getWantAgent(this.downloadingWantAgentInfo),
-      id: 5,
-      isAlertOnce: true,
-      notificationSlotType: notification.SlotType.SERVICE_INFORMATION,
-      deliveryTime: new Date().getTime()
-    };
-    await notification.publish(request).then(() => {
-      this.logInfo('showDownloadReminder publish promise success.');
-    }).catch((err: BusinessError) => {
-      this.logError('showDownloadReminder publish promise failed because ' + JSON.stringify(err));
-    });
-  }
-
   /**
    * 跳转信息--跳转到搜包页面
    */
@@ -178,8 +151,7 @@ export class NotificationHelper implements INotify {
    * @param context 上下文
    */
   async showDownloadPaused(version: string, progress: number, context: common.Context): Promise<void> {
-    let pausedText: string =
-      await context.resourceManager.getString($r('app.string.download_status_download_pause').id);
+    let pausedText: string = await context.resourceManager.getString($r('app.string.download_status_download_pause').id);
     let request: notification.NotificationRequest = {
       content: {
         notificationContentType: notification.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
@@ -194,7 +166,7 @@ export class NotificationHelper implements INotify {
       isAlertOnce: true,
       notificationSlotType: notification.SlotType.SERVICE_INFORMATION,
       deliveryTime: new Date().getTime()
-    };
+    }
     await notification.publish(request).then(() => {
       this.logInfo('showDownloadPaused publish promise success.');
     }).catch((err: BusinessError) => {
@@ -226,6 +198,33 @@ export class NotificationHelper implements INotify {
       this.logInfo('showVerifyFailed publish promise success.');
     }).catch((err: BusinessError) => {
       this.logError('showVerifyFailed publish promise failed because ' + JSON.stringify(err));
+    });
+  }
+
+  /**
+   * 下载失败通知
+   *
+   * @param context 上下文
+   */
+  async showDownloadFailed(context: common.Context): Promise<void> {
+    let request: notification.NotificationRequest = {
+      content: {
+        notificationContentType: notification.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
+        normal: {
+          title: await context.resourceManager.getString($r('app.string.download_fail_notification_title').id),
+          text: await context.resourceManager.getString($r('app.string.download_fail_notification_content').id)
+        }
+      },
+      wantAgent: await wantAgent.getWantAgent(this.checkWantAgentInfo),
+      id: 5,
+      isAlertOnce: true,
+      notificationSlotType: notification.SlotType.SERVICE_INFORMATION,
+      deliveryTime: new Date().getTime()
+    };
+    await notification.publish(request).then(() => {
+      this.logInfo('showDownloadFailed publish promise success.');
+    }).catch((err: BusinessError) => {
+      this.logError('showDownloadFailed publish promise failed because ' + JSON.stringify(err));
     });
   }
 
@@ -283,13 +282,13 @@ export class NotificationHelper implements INotify {
    *
    * @param context 实上下文
    */
-  async showUpgradeFailed(versionName: string, context: common.Context): Promise<void> {
+  async showUpgradeFailed(context: common.Context): Promise<void> {
     let request: notification.NotificationRequest = {
       content: {
         notificationContentType: notification.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
         normal: {
           title: await context.resourceManager.getString($r('app.string.install_fail_message').id),
-          text: versionName
+          text: await context.resourceManager.getString($r('app.string.install_fail_retry_search_content').id)
         }
       },
       wantAgent: await wantAgent.getWantAgent(this.checkWantAgentInfo),
@@ -300,6 +299,63 @@ export class NotificationHelper implements INotify {
       this.logInfo('showUpgradeFailed publish promise success.');
     }).catch((err: BusinessError) => {
       this.logError('showUpgradeFailed publish promise failed because ' + JSON.stringify(err));
+    });
+  }
+
+  /**
+   * 弹进入 updater 前安装失败通知
+   *
+   * @param errorCode 安装失败错误码
+   * @param context 实际上下文
+   */
+  async showPreInstallFailed(errorCode: number, context: common.Context): Promise<void> {
+    let title: string = await context.resourceManager.getString($r('app.string.install_fail_message').id);
+    let content: string;
+    let shouldCheckAgain: boolean = false;
+    switch (errorCode) {
+      case ErrorCode.NO_ENOUGH_MEMORY:
+        content = await context.resourceManager.getString($r('app.string.space_not_enough_content').id);
+        break;
+      case ErrorCode.NO_ENOUGH_BATTERY:
+        title = await context.resourceManager.getString($r('app.string.battery_not_enough_title').id);
+        let batteryContent =
+          await context.resourceManager.getString($r('app.string.battery_not_enough_content').id);
+        content = FormatUtils.formatStr(batteryContent,
+          FormatUtils.getNumberFormat(UpdateConstant.UPGRADE_BATTERY_THRESHOLD / 100));
+        break;
+      case ErrorCode.SYSTEM_BUSY_ON_INSTALL:
+      case ErrorCode.UPDATE_REBOOT_FAIL:
+        content = await context.resourceManager.getString($r('app.string.connect_try_again_later').id);
+        break;
+      case ErrorCode.UPDATE_PRECHECK_FAIL:
+        content = await context.resourceManager.getString($r('app.string.install_fail_retry_search_content').id);
+        shouldCheckAgain = true;
+        break;
+      default:
+        content = await context.resourceManager.getString($r('app.string.install_fail_retry_search_content').id);
+        shouldCheckAgain = true;
+        break;
+    }
+
+    await this.cancelAll();
+    const targetWantAgentInfo: wantAgent.WantAgentInfo = shouldCheckAgain ?
+      this.checkWantAgentInfo : this.downloadingWantAgentInfo;
+    let request: notification.NotificationRequest = {
+      content: {
+        notificationContentType: notification.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
+        normal: {
+          title: title,
+          text: content
+        }
+      },
+      wantAgent: await wantAgent.getWantAgent(targetWantAgentInfo),
+      id: 3,
+      notificationSlotType: notification.SlotType.SERVICE_INFORMATION
+    };
+    await notification.publish(request).then(() => {
+      this.logInfo('showPreInstallFailed publish promise success. errorCode=' + errorCode);
+    }).catch((err: BusinessError) => {
+      this.logError('showPreInstallFailed publish promise failed because ' + JSON.stringify(err));
     });
   }
 
@@ -334,8 +390,7 @@ export class NotificationHelper implements INotify {
    * @param context 实际上下文
    */
   async showNightUpgradeNotice(context: common.Context): Promise<void> {
-    let description: string =
-      await context.resourceManager.getString($r('app.string.setting_auto_update_description').id);
+    let description: string = await context.resourceManager.getString($r('app.string.setting_auto_update_description').id);
     let detailText: string = await context.resourceManager.getString($r('app.string.detail_info').id);
     let installText: string = await context.resourceManager.getString($r('app.string.btn_install_now').id);
     let request: notification.NotificationRequest = {
@@ -343,8 +398,7 @@ export class NotificationHelper implements INotify {
         notificationContentType: notification.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
         normal: {
           title: await context.resourceManager.getString($r('app.string.setting_auto_update_title').id),
-          text: FormatUtils.formatStr(description,
-            FormatUtils.getDateRangeFormat(NIGHT_UPGRADE_START, NIGHT_UPGRADE_END))
+          text: FormatUtils.formatStr(description, FormatUtils.getDateRangeFormat(NIGHT_UPGRADE_START, NIGHT_UPGRADE_END))
         }
       },
       wantAgent: await wantAgent.getWantAgent(this.downloadingWantAgentInfo),
@@ -360,7 +414,7 @@ export class NotificationHelper implements INotify {
       ],
       id: 6,
       notificationSlotType: notification.SlotType.SERVICE_INFORMATION
-    };
+    }
     await notification.publish(request).then(() => {
       this.logInfo('showNightUpgradeNotice publish promise success.');
     }).catch((err: BusinessError) => {
@@ -374,6 +428,8 @@ export class NotificationHelper implements INotify {
   async cancelAll(): Promise<void> {
     await notification.cancelAll().then(() => {
       this.logInfo('cancelAll notification success');
+    }).catch((err: BusinessError) => {
+      this.logError('cancelAll notification failed because ' + JSON.stringify(err));
     });
   }
 
