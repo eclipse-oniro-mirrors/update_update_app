@@ -39,7 +39,7 @@ UpdateApp 是 OpenHarmony 标准系统中预置的系统应用，支持版本检
 
 UpdateApp 采用分层与模块化设计，按产品入口、业务特性与公共能力组织代码，如图：
 
-![架构说明](./img.png)
+![架构说明](figures/update_app.png)
 
 ### 应用层分层设计
 
