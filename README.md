@@ -39,7 +39,7 @@ UpdateApp is a system application preinstalled in the OpenHarmony standard syste
 
 UpdateApp uses a layered and modular design. Code is organized by product entry, feature capability, and common capability, as shown below.
 
-![update_app_en.png](figures/update_app_en.png)
+![update_app_en.png](docs/figures/update_app_en.png)
 
 ### Application Layer Design
 
