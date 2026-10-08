@@ -327,7 +327,7 @@ export namespace DialogHelper {
         },
         cancel: () => {
           logInfo('Closed callbacks');
-          if(operator && operator.onCancel) {
+          if (operator && operator.onCancel) {
             operator?.onCancel();
           }
         },
