@@ -398,7 +398,8 @@ export class NotificationHelper implements INotify {
         notificationContentType: notification.ContentType.NOTIFICATION_CONTENT_BASIC_TEXT,
         normal: {
           title: await context.resourceManager.getString($r('app.string.setting_auto_update_title').id),
-          text: FormatUtils.formatStr(description, FormatUtils.getDateRangeFormat(NIGHT_UPGRADE_START, NIGHT_UPGRADE_END))
+          text: FormatUtils.formatStr(description,
+            FormatUtils.getDateRangeFormat(NIGHT_UPGRADE_START, NIGHT_UPGRADE_END))
         }
       },
       wantAgent: await wantAgent.getWantAgent(this.downloadingWantAgentInfo),
