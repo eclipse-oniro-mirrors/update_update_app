@@ -29,18 +29,22 @@ export struct TitleBar {
   @Prop private showMenu: boolean = false;
 
   build() {
-    Flex({ justifyContent: FlexAlign.SpaceBetween }) {
+    Flex({ justifyContent: FlexAlign.SpaceBetween, alignItems: ItemAlign.Center }) {
       Row() {
         Row() {
           Button({ type: ButtonType.Circle, stateEffect: true }) {
             SymbolGlyph($r('sys.symbol.chevron_backward'))
               .fontSize($r('app.float.title_bar_symbol_font_size'))
-              .fontColor([$r('sys.color.ohos_id_color_text_primary')])
+              .fontColor([$r('sys.color.icon_primary')])
+              .renderingStrategy(SymbolRenderingStrategy.SINGLE)
+              .draggable(false)
           }
-          .width($r('app.float.title_bar_icon_width'))
-          .height($r('app.float.title_bar_icon_height'))
+          .width($r('app.float.title_bar_icon_background_width'))
+          .height($r('app.float.title_bar_icon_background_height'))
           .backgroundColor($r('sys.color.ohos_id_color_button_normal'))
-          .borderRadius($r('sys.float.ohos_id_corner_radius_icon'))
+          .borderRadius('20vp')
+          .focusOnTouch(true)
+          .align(Alignment.Center)
         }.height($r('app.float.title_bar_height'))
         .margin({ left: $r('app.float.title_bar_icon_margin_left') })
         .onClick(() => {
@@ -71,11 +75,19 @@ export struct TitleBar {
   showMenuBuilder() {
     Button({ type: ButtonType.Circle, stateEffect: true }) {
       SymbolGlyph($r('sys.symbol.dot_grid_2x2'))
+        .fontSize($r('app.float.title_bar_symbol_font_size'))
+        .fontColor([$r('sys.color.icon_primary')])
+        .renderingStrategy(SymbolRenderingStrategy.SINGLE)
+        .focusable(true)
+        .draggable(false)
     }
-    .width('28vp')
-    .backgroundColor('#0C000000')
-    .margin({ right: $r('app.float.title_bar_text_margin_left'), top: $r('app.float.title_bar_text_margin_left') })
-    .height('28vp')
+    .width($r('app.float.title_bar_icon_background_width'))
+    .height($r('app.float.title_bar_icon_background_height'))
+    .borderRadius('20vp')
+    .focusOnTouch(true)
+    .align(Alignment.Center)
+    .backgroundColor($r('sys.color.ohos_id_color_button_normal'))
+    .margin({ right: $r('app.float.title_bar_icon_margin_left') })
     .onClick(() => {
       LogUtils.info(TitleBar.TAG, 'show menu click.');
       router.push({ url: 'pages/settingsView' })

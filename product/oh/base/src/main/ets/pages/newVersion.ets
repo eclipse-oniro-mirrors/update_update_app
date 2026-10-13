@@ -15,6 +15,8 @@
 
 import {
   CountDownDialogType,
+  NIGHT_UPGRADE_END,
+  NIGHT_UPGRADE_START,
   OtaStatus,
   UpdateState,
   UpgradeCallResult,
@@ -34,6 +36,7 @@ import { ChangelogContent } from 'ota/src/main/ets/components/ChangelogContent';
 import { ProgressContent } from 'ota/src/main/ets/components/ProgressContent';
 import { OtaUpdateManager } from 'ota/src/main/ets/manager/OtaUpdateManager';
 import { CountDownInstallDialogBuilder } from 'ota/src/main/ets/dialog/CountDownInstallDialogBuilder';
+import { EnableAutoUpdateDialogBuilder } from 'ota/src/main/ets/dialog/EnableAutoUpdateDialogBuilder';
 import { MessageDialogBuilder, } from 'ota/src/main/ets/dialog/MessageDialogBuilder';
 import { StateManager, UpdateAction } from 'ota/src/main/ets/manager/StateManager';
 import { UpgradeAdapter } from 'ota/src/main/ets/UpgradeAdapter';
@@ -75,6 +78,7 @@ struct NewVersion {
   private downloadNoNetworkDialogVisible: boolean =
     AppStorage.Get('downloadNoNetworkDialogVisible') as boolean;
   @State private isNoNetworkDialogOpen: boolean = false;
+  @State private isNightUpgradeVisible: boolean = false;
 
   private countdownDialogController = new CustomDialogController({
     builder: CountDownInstallDialogBuilder({
@@ -102,6 +106,24 @@ struct NewVersion {
 
   private restartDialogController = new CustomDialogController({
     builder: MessageDialogBuilder({ message: $r('app.string.reboot_wait') }),
+    autoCancel: false,
+    alignment: DeviceUtils.getDialogLocation(),
+    offset: ({
+      dx: '0vp',
+      dy: DeviceUtils.getDialogOffsetY()
+    })
+  });
+
+  private nightUpgradeDialogController = new CustomDialogController({
+    builder: EnableAutoUpdateDialogBuilder({
+      content: $r('app.string.setting_auto_update_description',
+        FormatUtils.getDateRangeFormat(NIGHT_UPGRADE_START, NIGHT_UPGRADE_END)),
+      cancel: () => {
+      },
+      confirm: () => {
+        this.enableNightUpgrade();
+      }
+    }),
     autoCancel: false,
     alignment: DeviceUtils.getDialogLocation(),
     offset: ({
@@ -227,6 +249,7 @@ struct NewVersion {
   private async initDataByStatus(): Promise<void> {
     this.isButtonEnable = StateManager.isButtonEnable(this.updateStatus);
     await this.initNewVersionPageInfo();
+    await this.refreshNightUpgradeVisibility();
     if (this.isClickInstall) {
       this.raiseCountDialogByClick();
     }
@@ -241,6 +264,40 @@ struct NewVersion {
     (this.isABStreamInstall() ||
     (this.updateStatus !== UpdateState.INSTALL_PAUSE &&
     this.updateStatus !== UpdateState.INSTALLING));
+  }
+
+  private async refreshNightUpgradeVisibility(): Promise<void> {
+    if (this.isABInstall() || StateManager.getButtonClickAction(this.updateStatus) !== UpdateAction.INSTALL) {
+      this.isNightUpgradeVisible = false;
+      return;
+    }
+    try {
+      const upgradePolicy = await OtaUpdateManager.getInstance().getUpdatePolicy();
+      this.isNightUpgradeVisible = upgradePolicy.downloadStrategy && !upgradePolicy.autoUpgradeStrategy;
+    } catch (error) {
+      this.isNightUpgradeVisible = false;
+      this.log(`Get update policy failed: ${JSON.stringify(error)}`);
+    }
+  }
+
+  private async enableNightUpgrade(): Promise<void> {
+    try {
+      const upgradePolicy = await OtaUpdateManager.getInstance().getUpdatePolicy();
+      upgradePolicy.downloadStrategy = true;
+      upgradePolicy.autoUpgradeStrategy = true;
+      await OtaUpdateManager.getInstance().setUpdatePolicy(upgradePolicy);
+      this.isNightUpgradeVisible = false;
+      this.log('Night upgrade enabled.');
+    } catch (error) {
+      this.log(`Enable night upgrade failed: ${JSON.stringify(error)}`);
+    }
+  }
+
+  private getMainButtonText(): string | Resource {
+    if (!this.isABInstall() && StateManager.getButtonClickAction(this.updateStatus) === UpdateAction.INSTALL) {
+      return $r('app.string.btn_install_immediately');
+    }
+    return this.buttonText;
   }
 
   public async initNewVersionPageInfo(): Promise<void> {
@@ -323,7 +380,9 @@ struct NewVersion {
 
   private async startDownload(): Promise<void> {
     if (await NetUtils.isCellularNetwork()) {
-      DialogHelper.displayNetworkDialog();
+      DialogHelper.displayNetworkDialog(() => {
+        OtaUpdateManager.getInstance().download(update.NetType.CELLULAR);
+      });
       return;
     }
     if (this.isABStreamInstall()) {
@@ -353,7 +412,11 @@ struct NewVersion {
         }
         break;
       case UpdateAction.RESUME:
-          if (this.isABStreamInstall()) {
+          if (await NetUtils.isCellularNetwork()) {
+            DialogHelper.displayNetworkDialog(() => {
+              OtaUpdateManager.getInstance().resumeDownload(update.NetType.CELLULAR);
+            });
+          } else if (this.isABStreamInstall()) {
             this.upgrade();
           } else {
             OtaUpdateManager.getInstance().resumeDownload();
@@ -420,9 +483,38 @@ struct NewVersion {
               this.handleButtonClick();
             }
           })
+        } else if (this.isNightUpgradeVisible) {
+          Row({ space: '8vp' }) {
+            Button($r('app.string.btn_night_upgrade'))
+              .type(ButtonType.Capsule)
+              .height($r('app.float.custom_button_height'))
+              .backgroundColor($r('sys.color.ohos_id_color_button_normal'))
+              .fontColor($r('app.color.blue'))
+              .fontSize($r('app.float.text_size_btn'))
+              .fontWeight(FontWeight.Medium)
+              .layoutWeight(1)
+              .onClick(() => {
+                this.nightUpgradeDialogController.open();
+              })
+            Button($r('app.string.btn_install_immediately'))
+              .type(ButtonType.Capsule)
+              .height($r('app.float.custom_button_height'))
+              .backgroundColor($r('app.color.blue'))
+              .fontColor(Color.White)
+              .fontSize($r('app.float.text_size_btn'))
+              .fontWeight(FontWeight.Medium)
+              .layoutWeight(1)
+              .onClick(() => {
+                if (this.isButtonEnable) {
+                  this.handleButtonClick();
+                }
+              })
+          }
+          .width('100%')
+          .padding({ left: '20vp', right: '20vp' })
         } else {
           Button() {
-            Text(this.buttonText)
+            Text(this.getMainButtonText())
               .fontSize($r('app.float.text_size_btn')).fontColor(Color.White).fontWeight(FontWeight.Medium)
               .margin({ left: $r('app.float.custom_button_text_margin_left'),
                 right: $r('app.float.custom_button_text_margin_right') })
@@ -479,13 +571,7 @@ struct NewVersion {
     if (this.isABInstall()) {
       return;
     }
-    let otaStatus: OtaStatus;
-    try {
-      otaStatus = JSON.parse(this.installStatusRefresh);
-    } catch (e) {
-      LogUtils.error('NewVersion', 'parse otaStatus to json failed');
-      return;
-    }
+    let otaStatus: OtaStatus = JSON.parse(this.installStatusRefresh);
     let status: UpdateState | undefined = otaStatus?.status;
     if (status === UpdateState.INSTALL_FAILED || status === UpdateState.UPGRADE_FAILED ||
       status === UpdateState.UPGRADE_SUCCESS) {

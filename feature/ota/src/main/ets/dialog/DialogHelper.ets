@@ -13,11 +13,10 @@
  * limitations under the License.
  */
 
-import update from '@ohos.update';
 import { DeviceUtils } from '@ohos/common/src/main/ets/util/DeviceUtils';
 import { LogUtils } from '@ohos/common/src/main/ets/util/LogUtils';
 import { FormatUtils } from '@ohos/common/src/main/ets/util/FormatUtils';
-import { UpdateState } from '@ohos/common/src/main/ets/const/update_const';
+import { ErrorCode, UpdateConstant, UpdateState } from '@ohos/common/src/main/ets/const/update_const';
 import { OtaUpdateManager } from '../manager/OtaUpdateManager';
 import RouterUtils from '../util/RouterUtils';
 
@@ -104,7 +103,7 @@ export namespace DialogHelper {
    *
    * @param operator 回调
    */
-  export function displayNetworkDialog(): void {
+  export function displayNetworkDialog(onConfirm: () => void): void {
     AlertDialog.show(
       {
         title: $r('app.string.software_update'),
@@ -120,7 +119,7 @@ export namespace DialogHelper {
           value: $r('app.string.ok'),
           action: () => {
             logInfo('Callback when the second button is clicked');
-            OtaUpdateManager.getInstance().download(update.NetType.CELLULAR);
+            onConfirm();
           },
           backgroundColor: $r('sys.float.ohos_id_corner_radius_button')
         },
@@ -144,6 +143,40 @@ export namespace DialogHelper {
    */
   export function displayUpgradeFailDialog(): void {
     defaultNoTitleDialog($r('app.string.update_fail'), retryCheckAction);
+  }
+
+  /**
+   * 进入 updater 前安装失败弹框
+   *
+   * @param errorCode 安装失败错误码
+   */
+  export function displayPreInstallFailedDialog(errorCode: number): void {
+    let title: ResourceStr = $r('app.string.install_fail_message');
+    let message: ResourceStr;
+    let operator: DialogOperator | undefined = undefined;
+    switch (errorCode) {
+      case ErrorCode.NO_ENOUGH_MEMORY:
+        message = $r('app.string.space_not_enough_content');
+        break;
+      case ErrorCode.NO_ENOUGH_BATTERY:
+        title = $r('app.string.battery_not_enough_title');
+        message = $r('app.string.battery_not_enough_content',
+          FormatUtils.getNumberFormat(UpdateConstant.UPGRADE_BATTERY_THRESHOLD / 100));
+        break;
+      case ErrorCode.SYSTEM_BUSY_ON_INSTALL:
+      case ErrorCode.UPDATE_REBOOT_FAIL:
+        message = $r('app.string.connect_try_again_later');
+        break;
+      case ErrorCode.UPDATE_PRECHECK_FAIL:
+        message = $r('app.string.install_fail_retry_search_content');
+        operator = retryCheckAction;
+        break;
+      default:
+        message = $r('app.string.install_fail_retry_search_content');
+        operator = retryCheckAction;
+        break;
+    }
+    defaultKnowDialog(title, message, operator);
   }
 
   /**
@@ -286,13 +319,17 @@ export namespace DialogHelper {
           value: confirmText,
           action: () => {
             logInfo('defaultKnowDialog button is clicked');
-            operator?.onConfirm();
+            if (operator && operator.onConfirm) {
+              operator.onConfirm();
+            }
           },
           backgroundColor: $r('sys.float.ohos_id_corner_radius_button')
         },
         cancel: () => {
           logInfo('Closed callbacks');
-          operator?.onCancel();
+          if (operator && operator.onCancel) {
+            operator?.onCancel();
+          }
         },
         alignment: DeviceUtils.getDialogLocation(),
         offset: ({
