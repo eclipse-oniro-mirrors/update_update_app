@@ -47,7 +47,6 @@ export default class ServiceExtAbility extends Extension {
   async onRequest(want: Want, startId: number): Promise<void> {
     let callerNativeName: string | undefined = want?.parameters?.[CALLER_NATIVE_NAME_KEY] as string;
     LogUtils.log(ServiceExtAbility.TAG, `onRequest, callerNativeName: ${callerNativeName}`);
-
     if (!this.isAllowedCaller(callerNativeName)) {
       this.stopSelf(startId);
       return;
