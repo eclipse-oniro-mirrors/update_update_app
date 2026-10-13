@@ -23,7 +23,10 @@ import { OtaUpdateManager } from '../manager/OtaUpdateManager';
 import VersionUtils from '../util/VersionUtils';
 import ToastUtils from '../util/ToastUtils';
 import { UpgradeAdapter } from '../UpgradeAdapter';
-import { SceneBoardDialogManager, SceneBoardDialogType } from '../notify/SceneBoardDialogManager';
+import {
+  SceneBoardDialogManager,
+  SceneBoardDialogType
+} from '../notify/SceneBoardDialogManager';
 
 const SETTINGS_DEVICE_PROVISIONED = 'device_provisioned';
 const SETTINGS_USER_SETUP_COMPLETE = 'user_setup_complete';
@@ -326,23 +329,17 @@ export class CheckSuccess extends BaseState {
       }
       return;
     }
-    const isBackgroundReminder = globalThis.AbilityStatus !== 'ON_FOREGROUND' &&
-      (eventId === update.EventId.EVENT_DOWNLOAD_WAIT || eventId === update.EventId.EVENT_TASK_RECEIVE);
-    if (isBackgroundReminder && isInOobe(context)) {
+    const isBackgroundDownloadReminder = eventId === update.EventId.EVENT_DOWNLOAD_WAIT &&
+      globalThis.AbilityStatus !== 'ON_FOREGROUND';
+    if (isBackgroundDownloadReminder && isInOobe(context)) {
       LogUtils.info('StateManager', 'OOBE is not complete, skip download reminder.');
       return;
     }
-    if (eventId === update.EventId.EVENT_DOWNLOAD_WAIT && globalThis.AbilityStatus !== 'ON_FOREGROUND') {
+    if (isBackgroundDownloadReminder) {
       LogUtils.info('StateManager', 'Check success in background, show download reminder dialog.');
       await SceneBoardDialogManager.showDialog(context, {
         dialogType: SceneBoardDialogType.DOWNLOAD_REMINDER
       });
-      return;
-    }
-    if (eventId === update.EventId.EVENT_TASK_RECEIVE && globalThis.AbilityStatus !== 'ON_FOREGROUND') {
-      LogUtils.info('StateManager', 'Download reminder reached notification threshold, show notification.');
-      const versionName = await VersionUtils.obtainNewVersionName(globalThis.cachedNewVersionInfo);
-      await UpgradeAdapter.getInstance().getNotifyInstance()?.showDownloadReminder(versionName, context);
     }
   }
 }
@@ -500,6 +497,10 @@ export class DownloadFailed extends BaseState {
         DialogUtils.showVerifyFailDialog(context, this.otaStatus, eventId);
         break;
       default:
+        await UpgradeAdapter.getInstance().getNotifyInstance()?.showDownloadFailed(context);
+        if (globalThis.AbilityStatus !== 'ON_FOREGROUND') {
+          break;
+        }
         DialogUtils.showDownloadFailDialog(context, this.otaStatus, eventId);
         break;
     }
@@ -529,12 +530,33 @@ export class DownloadSuccess extends BaseState {
     LogUtils.info('StateManager:', 'notify ab flag ' + isABInstall + ',eventId:' + eventId);
     if (eventId == update.EventId.EVENT_DOWNLOAD_SUCCESS) {
       if (isABInstall) {
-        OtaUpdateManager.getInstance().upgrade(update.Order.INSTALL);
+        try {
+          await OtaUpdateManager.getInstance().upgrade(update.Order.INSTALL, false, context);
+        } catch (err) {
+          LogUtils.error('StateManager', 'Automatic AB install failed: ' + JSON.stringify(err));
+        }
         return;
       }
       if (VersionUtils.isInNewVersionPage()) {
         AppStorage.Set('isClickInstall', 1);
+        return;
       }
+      const upgradePolicy = await OtaUpdateManager.getInstance().getUpdatePolicy();
+      if (upgradePolicy.downloadStrategy) {
+        if (!upgradePolicy.autoUpgradeStrategy) {
+          LogUtils.info('StateManager', 'Automatic download completed, show install reminder dialog.');
+          await SceneBoardDialogManager.showDialog(context, {
+            dialogType: SceneBoardDialogType.INSTALL_REMINDER
+          });
+        } else {
+          LogUtils.info('StateManager', 'Automatic download completed, keep the night upgrade flow.');
+        }
+        return;
+      }
+      LogUtils.info('StateManager', 'Download complete in background, show install countdown dialog.');
+      await SceneBoardDialogManager.showDialog(context, {
+        dialogType: SceneBoardDialogType.INSTALL_COUNTDOWN
+      });
       return;
     }
 
@@ -654,14 +676,7 @@ export class InstallFailed extends BaseState {
     AppStorage.Set('installStatusRefresh', JSON.stringify(this.otaStatus));
     await UpgradeAdapter.getInstance().getNotifyInstance()?.isServiceReady();
     await UpgradeAdapter.getInstance().getNotifyInstance()?.cancelAll();
-    if (VersionUtils.isInNewVersionPage()) {
-      DialogUtils.showUpgradeFailDialog(context, this.otaStatus);
-    } else {
-      let versionName: string = globalThis.lastVersionName as string;
-      LogUtils.log('StateManager', 'InstallFailed versionName is ' + versionName);
-      await UpgradeAdapter.getInstance().getNotifyInstance()?.showUpgradeFailed(versionName, context);
-    }
-
+    await UpgradeAdapter.getInstance().getNotifyInstance()?.showUpgradeFailed(context);
   }
 }
 

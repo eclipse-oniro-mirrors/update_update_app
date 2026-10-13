@@ -16,7 +16,7 @@
 import type common from '@ohos.app.ability.common';
 import update from '@ohos.update';
 import type Want from '@ohos.app.ability.Want';
-import { ErrorCode } from '@ohos/common/src/main/ets/const/update_const';
+import { Action, ErrorCode } from '@ohos/common/src/main/ets/const/update_const';
 import type { BusinessError, OtaStatus, UpgradeData, CustomEventInfo }
   from '@ohos/common/src/main/ets/const/update_const';
 import { UpdateState, UpgradeCallResult, } from '@ohos/common/src/main/ets/const/update_const';
@@ -36,6 +36,7 @@ import { CommonUtils } from '@ohos/common/src/main/ets/util/CommonUtils';
 import { UpgradeAdapter } from '../UpgradeAdapter';
 import { FormatUtils } from '@ohos/common/src/main/ets/util/FormatUtils';
 import { SettingsSyncUtils } from '../util/SettingsSyncUtils';
+import { DialogUtils } from '../dialog/DialogUtils';
 
 /**
  * 升级接口管理类
@@ -163,23 +164,64 @@ export class OtaUpdateManager {
    * 升级
    *
    * @param order 安装指令
+   * @param showDialogOnFailure 安装调用失败时是否优先显示弹框
+   * @param context 发布失败通知使用的上下文
    */
-  async upgrade(order: update.Order = update.Order.INSTALL_AND_APPLY): Promise<void> {
+  async upgrade(order: update.Order = update.Order.INSTALL_AND_APPLY,
+    showDialogOnFailure: boolean = true, context?: common.Context): Promise<void> {
     let versionDigest: string = await VersionUtils.getNewVersionDigest();
-    return new Promise((resolve, reject) => {
-      this.updateManager.upgrade(versionDigest, order).then(()=> {
-        resolve();
-      }).catch((err: BusinessError) => {
+    try {
+      await this.updateManager.upgrade(versionDigest, order);
+    } catch (err) {
+      const businessError = err as BusinessError;
+      const errorCode = this.getBusinessErrorCode(businessError);
+      if (order === update.Order.APPLY) {
         let status: OtaStatus = {
-          status: order === update.Order.APPLY ? UpdateState.INSTALL_SUCCESS : UpdateState.DOWNLOAD_SUCCESS,
+          status: UpdateState.INSTALL_SUCCESS,
           percent: 100,
-          endReason: err?.data?.[0]?.errorCode?.toString() || ErrorCode.DEFAULT_ERROR.toString(),
+          endReason: errorCode.toString()
         };
-        this.notifyUpdateStatus(status, globalThis.abilityContext);
-        this.logError('upgrade err:' + JSON.stringify(err));
-        reject(err);
-      });
-    });
+        await this.notifyUpdateStatus(status, globalThis.abilityContext);
+      } else {
+        await this.notifyPreInstallFailure(errorCode, showDialogOnFailure, context);
+      }
+      this.logError('upgrade err:' + JSON.stringify(err));
+      return Promise.reject(businessError);
+    }
+  }
+
+  /**
+   * 根据应用所处页面选择弹框或系统通知显示进入Updater前的安装失败信息
+   *
+   * @param errorCode 安装前检查或安装接口返回的错误码
+   * @param showDialogOnFailure 是否允许在版本详情前台页面显示弹框
+   * @param context 发布失败通知使用的上下文
+   */
+  private async notifyPreInstallFailure(errorCode: ErrorCode, showDialogOnFailure: boolean,
+    context?: common.Context): Promise<void> {
+    if (showDialogOnFailure && VersionUtils.isInNewVersionPage()) {
+      DialogUtils.showPreInstallFailedDialog(errorCode);
+      return;
+    }
+    const notificationContext: common.Context | undefined =
+      context ?? globalThis.abilityContext ?? globalThis.extensionContext;
+    if (!notificationContext) {
+      this.logError('Unable to show pre-install failure notification because context is unavailable.');
+      return;
+    }
+    await UpgradeAdapter.getInstance().getNotifyInstance()?.isServiceReady();
+    await UpgradeAdapter.getInstance().getNotifyInstance()?.showPreInstallFailed(errorCode,
+      notificationContext);
+  }
+
+  /**
+   * 从BusinessError中提取首个业务错误码，缺失时返回默认错误码
+   *
+   * @param error UpdateService接口返回的业务异常
+   * @return 可用于失败提示映射的错误码
+   */
+  private getBusinessErrorCode(error?: BusinessError): ErrorCode {
+    return error?.data?.[0]?.errorCode ?? ErrorCode.DEFAULT_ERROR;
   }
 
   /**
@@ -205,10 +247,10 @@ export class OtaUpdateManager {
   /**
    * 继续下载
    */
-  async resumeDownload(): Promise<void>  {
+  async resumeDownload(downloadNetwork: update.NetType = update.NetType.WIFI): Promise<void>  {
     let versionDigest: string = await VersionUtils.getNewVersionDigest();
     this.setUpdateState(UpdateState.DOWNLOADING);
-    this.updateManager.resumeDownload(versionDigest, update.NetType.WIFI).then(result => {
+    this.updateManager.resumeDownload(versionDigest, downloadNetwork).then(result => {
       this.log('resumeDownload result:' + JSON.stringify(result));
     }).catch((err: BusinessError) => {
       let status: OtaStatus = {
@@ -319,12 +361,6 @@ export class OtaUpdateManager {
       this.stateObj = StateManager.createInstance(otaStatus);
     }
     this.stateObj.refresh(otaStatus);
-    if (otaStatus.status === UpdateState.DOWNLOADING || otaStatus.status === UpdateState.DOWNLOAD_PAUSE) {
-      let currentProgress: number = this.getDownloadProgress() ?? 0;
-      if (currentProgress > this.stateObj.percent) {
-        this.stateObj.percent = currentProgress;
-      }
-    }
     this.lastStatus = otaStatus.status;
     this.setUpdateState(this.stateObj.state);
     this.setDownloadProgress(this.stateObj.percent);
@@ -423,6 +459,16 @@ export class OtaUpdateManager {
    */
   public async handleWant(want: Want, context: common.Context): Promise<void> {
     let action: string = want?.action ?? '';
+    if (action === Action.NOTIFICATION_INSTALL) {
+      this.log('Start installation directly from night upgrade notification.');
+      try {
+        const order = await VersionUtils.isABInstall() ? update.Order.INSTALL : update.Order.INSTALL_AND_APPLY;
+        await this.upgrade(order, false, context);
+      } catch (err) {
+        this.logError('Install action from notification failed: ' + JSON.stringify(err));
+      }
+      return;
+    }
     if (await NotificationManager.handleAction(action, context)) {
       this.log('handleWant:' + CommonUtils.stringify(want));
       return;
