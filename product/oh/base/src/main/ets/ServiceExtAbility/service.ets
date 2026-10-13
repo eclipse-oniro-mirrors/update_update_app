@@ -22,6 +22,8 @@ import { LogUtils } from '@ohos/common/src/main/ets/util/LogUtils';
 import type { BusinessError } from '@ohos/common/src/main/ets/const/update_const';
 import { ServiceExtStub } from './serviceStub';
 
+const CALLER_NATIVE_NAME_KEY = 'ohos.aafwk.param.callerNativeName';
+const UPDATE_SERVICE_NATIVE_NAME = '_updater_sa';
 /**
  * service extension ability.
  * receive want from update_engine
@@ -42,6 +44,13 @@ export default class ServiceExtAbility extends Extension {
   }
 
   async onRequest(want: Want, startId: number): Promise<void> {
+    let callerNativeName: string | undefined = want?.parameters?.[CALLER_NATIVE_NAME_KEY] as string;
+    LogUtils.log(ServiceExtAbility.TRG, `onRequest, callerNativeName: ${callerNativeName}`);
+
+    if (!this.isAllowedCaller(callerNativeName)) {
+      this.stopSelf(startId);
+      return;
+    }
     LogUtils.log(ServiceExtAbility.TAG, `onRequest, want: ${want?.abilityName}`);
     this.startIdArray.push(startId);
     globalThis.extensionContext = this.context;
@@ -51,17 +60,23 @@ export default class ServiceExtAbility extends Extension {
 
   onConnect(want: Want): rpc.RemoteObject {
     LogUtils.log(ServiceExtAbility.TAG, `onConnect , want: ${want?.abilityName}`);
+    let callerNativeName: string | undefined = want?.parameters?.[CALLER_NATIVE_NAME_KEY] as string;
+    LogUtils.log(ServiceExtAbility.TRG, `onConnect, callerNativeName: ${callerNativeName}`);
     this.startIdArray.push(ServiceExtAbility.START_ID_CONNECT);
     this.connectTimeout = want?.parameters?.[ServiceExtAbility.CONNECT_TIMEOUT] as number ?? this.connectTimeout;
     let objectIpc: rpc.RemoteObject = new ServiceExtStub(ServiceExtAbility.TAG, (message: string) => {
-      return this.remoteMessageCallback(message);
+      return this.remoteMessageCallback(message, callerNativeName);
     });
     return objectIpc;
   }
 
-  private remoteMessageCallback(message: string): void {
+  private remoteMessageCallback(message: string, callerNativeName: string | undefined): void {
     LogUtils.info(ServiceExtAbility.TAG,
-      `remoteMessageCallback, timeout: ${this.connectTimeout}s, message: ${message}.`);
+      `remoteMessageCallback, timeout: ${this.connectTimeout}s, message: ${message}, callerNativeName: ${callerNativeName}`);
+    if (!this.isAllowedCaller(callerNativeName)) {
+      this.stopSelf(ServiceExtAbility.START_ID_CONNECT);
+      return;
+    }
     if (this.connectTimeoutId !== null) {
       clearTimeout(this.connectTimeoutId);
     }
@@ -99,5 +114,12 @@ export default class ServiceExtAbility extends Extension {
         });
       }, terminateDelayTime);
     }
+  }
+
+  private isAllowedCaller(nativeName: string | undefined): bool {
+    if (nativeName) {
+      return nativeName === UPDATE_SERVICE_NATIVE_NAME;
+    }
+    return false;
   }
 }
