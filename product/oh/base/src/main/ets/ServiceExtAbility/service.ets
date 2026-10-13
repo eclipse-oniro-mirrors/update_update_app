@@ -24,6 +24,7 @@ import { ServiceExtStub } from './serviceStub';
 
 const CALLER_NATIVE_NAME_KEY = 'ohos.aafwk.param.callerNativeName';
 const UPDATE_SERVICE_NATIVE_NAME = '_updater_sa';
+
 /**
  * service extension ability.
  * receive want from update_engine
@@ -45,7 +46,7 @@ export default class ServiceExtAbility extends Extension {
 
   async onRequest(want: Want, startId: number): Promise<void> {
     let callerNativeName: string | undefined = want?.parameters?.[CALLER_NATIVE_NAME_KEY] as string;
-    LogUtils.log(ServiceExtAbility.TRG, `onRequest, callerNativeName: ${callerNativeName}`);
+    LogUtils.log(ServiceExtAbility.TAG, `onRequest, callerNativeName: ${callerNativeName}`);
 
     if (!this.isAllowedCaller(callerNativeName)) {
       this.stopSelf(startId);
@@ -61,7 +62,7 @@ export default class ServiceExtAbility extends Extension {
   onConnect(want: Want): rpc.RemoteObject {
     LogUtils.log(ServiceExtAbility.TAG, `onConnect , want: ${want?.abilityName}`);
     let callerNativeName: string | undefined = want?.parameters?.[CALLER_NATIVE_NAME_KEY] as string;
-    LogUtils.log(ServiceExtAbility.TRG, `onConnect, callerNativeName: ${callerNativeName}`);
+    LogUtils.log(ServiceExtAbility.TAG, `onConnect, callerNativeName: ${callerNativeName}`);
     this.startIdArray.push(ServiceExtAbility.START_ID_CONNECT);
     this.connectTimeout = want?.parameters?.[ServiceExtAbility.CONNECT_TIMEOUT] as number ?? this.connectTimeout;
     let objectIpc: rpc.RemoteObject = new ServiceExtStub(ServiceExtAbility.TAG, (message: string) => {
@@ -116,7 +117,7 @@ export default class ServiceExtAbility extends Extension {
     }
   }
 
-  private isAllowedCaller(nativeName: string | undefined): bool {
+  private isAllowedCaller(nativeName: string | undefined): boolean {
     if (nativeName) {
       return nativeName === UPDATE_SERVICE_NATIVE_NAME;
     }
