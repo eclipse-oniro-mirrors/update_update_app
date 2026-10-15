@@ -67,7 +67,10 @@
         "description": "service",
         "type": "service",
         "visible": true,
-        "srcEntrance": "./ets/ServiceExtAbility/service.ets"
+        "srcEntrance": "./ets/ServiceExtAbility/service.ets",
+        "permissions": [
+          "ohos.permission.UPDATE_SYSTEM"
+        ]
       },
       {
         "name": "UpdateSystemDialogAbility",
