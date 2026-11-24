@@ -54,6 +54,7 @@ import RouterUtils from 'ota/src/main/ets/util/RouterUtils';
 @Entry
 @Component
 struct NewVersion {
+  @State private bannerHeight: number = 0;
   @State private displayFileSize: string = '';
   @State @Watch('refreshDescription') private changelogArray: Array<ChangelogInfo> = [];
   @State private description: string = '';
@@ -315,7 +316,7 @@ struct NewVersion {
       update.VersionComponent[];
     let pageInfo: VersionPageInfo = await UpgradeAdapter.getInstance()
       .getPageInstance()?.getNewVersionPageInfo(components);
-    this.displayNewVersionName = pageInfo?.version;
+    this.displayNewVersionName = pageInfo?.version ?? '';
     this.dialogText = pageInfo?.countDownDialogInfo?.dialogText;
     this.dialogType = pageInfo?.countDownDialogInfo?.dialogType;
     this.effectiveMode = pageInfo?.effectiveMode;
@@ -436,10 +437,30 @@ struct NewVersion {
         Scroll() {
           Column() {
             Row() {
-              Image($r('app.media.home_bg'))
-                .width('100%')
-                .constraintSize({ maxWidth: 600 })
-                .objectFit(ImageFit.Contain)
+              Stack() {
+                Image($r('app.media.home_bg'))
+                  .width('100%')
+                  .objectFit(ImageFit.Contain)
+                  .onSizeChange((_oldSize: SizeOptions, newSize: SizeOptions) => {
+                    this.bannerHeight = Number(newSize.height);
+                  })
+                if (this.isInitComplete && (this.displayNewVersionName || this.displayFileSize)) {
+                  Text([this.displayNewVersionName, this.displayFileSize]
+                    .filter((value: string) => value.length > 0).join('  |  '))
+                    .fontSize($r('app.float.text_size_version_size'))
+                    .fontColor($r('app.color.black'))
+                    .opacity(0.6)
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                    .width('100%')
+                    .padding({ left: 12, right: 12 })
+                    .textAlign(TextAlign.Center)
+                    // 从卡片中心下移到背景图内的 OpenHarmony 标题下方。
+                    .translate({ y: this.bannerHeight * 0.29 })
+                }
+              }
+              .width('100%')
+              .constraintSize({ maxWidth: 600 })
             }
             .width('100%')
             .padding({ left: 20, right: 20, bottom: 20 })

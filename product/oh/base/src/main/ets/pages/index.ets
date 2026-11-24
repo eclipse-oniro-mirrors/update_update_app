@@ -278,6 +278,13 @@ struct Index {
                 .width($r('app.float.index_center_image_width'))
                 .objectFit(ImageFit.Contain)
                 .margin({bottom: '10vp'})
+              Text(this.displayVersion)
+                .fontSize($r('app.float.home_text_size_version_name'))
+                .fontColor($r('app.color.black'))
+                .opacity(0.6)
+                .margin({
+                  bottom: $r('app.float.index_version_name_margin_bottom')
+                })
               Row() {
                 Text(this.newVersionActionText)
                   .fontSize($r('app.float.text_size_body'))
