@@ -32,12 +32,13 @@ export namespace DeviceUtils {
   }
 
   /**
-   * 获取显示版本号
+   * 获取当前系统的四段版本号
    *
    * @return 显示版本号
    */
   export function getDisplayVersion(): string {
-    return deviceInfo.displayVersion;
+    return [deviceInfo.majorVersion, deviceInfo.seniorVersion, deviceInfo.featureVersion,
+      deviceInfo.buildVersion].join('.');
   }
 
   /**
